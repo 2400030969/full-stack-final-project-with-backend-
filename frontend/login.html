@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Peer Review Platform</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="card auth-card">
+            <h2 class="card-title text-center" id="auth-title">Login</h2>
+            <p class="card-text text-center mb-4 text-secondary">Peer Review & Collaboration Platform</p>
+            
+            <div id="error-msg" class="card-text text-center" style="color: var(--danger); display: none;"></div>
+
+            <form id="auth-form">
+                <div id="register-fields" class="d-none">
+                    <div class="form-group">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" id="name" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Role</label>
+                        <select id="role" class="form-control">
+                            <option value="student">Student</option>
+                            <option value="teacher">Teacher</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" id="email" class="form-control" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" id="password" class="form-control" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;" id="submit-btn">Login</button>
+            </form>
+
+            <div class="text-center mt-3">
+                <a href="#" id="toggle-auth" style="color: var(--primary); text-decoration: none; font-size: 0.875rem;">Need an account? Register here</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        let isLogin = true;
+
+        document.getElementById('toggle-auth').addEventListener('click', (e) => {
+            e.preventDefault();
+            isLogin = !isLogin;
+            
+            document.getElementById('auth-title').textContent = isLogin ? 'Login' : 'Register';
+            document.getElementById('submit-btn').textContent = isLogin ? 'Login' : 'Register';
+            document.getElementById('toggle-auth').textContent = isLogin ? 'Need an account? Register here' : 'Already have an account? Login here';
+            
+            const registerFields = document.getElementById('register-fields');
+            if (isLogin) {
+                registerFields.classList.add('d-none');
+                document.getElementById('name').removeAttribute('required');
+            } else {
+                registerFields.classList.remove('d-none');
+                document.getElementById('name').setAttribute('required', 'true');
+            }
+        });
+
+        document.getElementById('auth-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errorMsg = document.getElementById('error-msg');
+            errorMsg.style.display = 'none';
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                if (isLogin) {
+                    const res = await login(email, password);
+                    setAuthUser(res.user);
+                } else {
+                    const name = document.getElementById('name').value;
+                    const role = document.getElementById('role').value;
+                    const res = await register(name, email, password, role);
+                    setAuthUser(res.user);
+                }
+                
+                window.location.href = 'index.html'; // let index handle routing
+            } catch (err) {
+                errorMsg.textContent = err.message;
+                errorMsg.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+[
+  {
+    "id": "u1",
+    "name": "Teacher Admin",
+    "email": "teacher@test.com",
+    "password": "password123",
+    "role": "teacher"
+  },
+  {
+    "id": "u2",
+    "name": "Student One",
+    "email": "student1@test.com",
+    "password": "password123",
+    "role": "student"
+  },
+  {
+    "id": "u3",
+    "name": "Student Two",
+    "email": "student2@test.com",
+    "password": "password123",
+    "role": "student"
+  },
+  {
+    "id": "user-1773296268828",
+    "name": "varun",
+    "email": "2400030969@kluniversity.in",
+    "password": "12345",
+    "role": "student"
+  },
+  {
+    "id": "user-1773813074989",
+    "name": "varun",
+    "email": "2400030970@kluniversity.in",
+    "password": "123456",
+    "role": "student"
+  }
+]

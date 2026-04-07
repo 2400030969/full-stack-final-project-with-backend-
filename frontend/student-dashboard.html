@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <script src="script.js"></script>
+    <script>checkAuth('student');</script>
+    <script>renderNavbar();</script>
+
+    <div class="container">
+        <div class="flex-between mb-4">
+            <h2>Student Dashboard</h2>
+            <div>
+                <a href="submit-project.html" class="btn btn-primary">Submit a Project</a>
+                <a href="feedback.html" class="btn" style="background: var(--bg-color); border: 1px solid var(--border);">My Feedback</a>
+            </div>
+        </div>
+
+        <h3 class="mb-4">Available Assignments</h3>
+        <div id="assignments-list" class="grid">
+            Loading assignments...
+        </div>
+    </div>
+
+    <script>
+        async function loadAssignments() {
+            const list = document.getElementById('assignments-list');
+            try {
+                const user = getAuthUser();
+                const assigns = await getAssignments();
+                const mySubs = await getSubmissions(null, user.id);
+                
+                list.innerHTML = '';
+                if (assigns.length === 0) {
+                    list.innerHTML = '<p class="text-secondary">No assignments available.</p>';
+                    return;
+                }
+
+                assigns.forEach(a => {
+                    const hasSubmitted = mySubs.some(s => s.assignmentId === a.id);
+                    
+                    list.innerHTML += `
+                        <div class="card">
+                            <div class="flex-between mb-4">
+                                <h3 class="card-title" style="margin: 0;">${a.title}</h3>
+                                ${hasSubmitted ? '<span class="badge badge-success">Submitted</span>' : '<span class="badge badge-primary">Pending</span>'}
+                            </div>
+                            <p class="card-text">${a.description}</p>
+                            <p class="text-secondary mb-4" style="font-size: 0.875rem;">Deadline: ${a.deadline}</p>
+                            
+                            <div class="flex-between">
+                                <a href="submit-project.html?assignmentId=${a.id}" class="btn btn-primary" style="font-size: 0.875rem;">${hasSubmitted ? 'Re-submit' : 'Submit Now'}</a>
+                                <a href="peer-review.html?assignmentId=${a.id}" class="btn" style="background: var(--bg-color); border: 1px solid var(--border); font-size: 0.875rem;">Review Peers</a>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (err) {
+                list.innerHTML = `<p style="color:red">Error: ${err.message}</p>`;
+            }
+        }
+
+        loadAssignments();
+    </script>
+</body>
+</html>

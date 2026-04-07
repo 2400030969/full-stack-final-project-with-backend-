@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Feedback</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <script src="script.js"></script>
+    <script>checkAuth('student');</script>
+    <script>renderNavbar();</script>
+
+    <div class="container">
+        <div class="flex-between mb-4">
+            <h2>My Feedback</h2>
+            <a href="student-dashboard.html" class="text-secondary" style="text-decoration: none; font-size: 0.875rem;">Back to Dashboard</a>
+        </div>
+
+        <div id="feedback-list">
+            Loading your feedback...
+        </div>
+    </div>
+
+    <script>
+        async function loadFeedback() {
+            const list = document.getElementById('feedback-list');
+            try {
+                const user = getAuthUser();
+                const mySubs = await getSubmissions(null, user.id);
+                const allAssigns = await getAssignments();
+                
+                list.innerHTML = '';
+                
+                if (mySubs.length === 0) {
+                    list.innerHTML = '<div class="card"><p class="text-secondary m-0 text-center">You have not submitted any projects yet.</p></div>';
+                    return;
+                }
+
+                // Iterate over each submission
+                for (const sub of mySubs) {
+                    const assign = allAssigns.find(a => a.id === sub.assignmentId);
+                    const assignTitle = assign ? assign.title : 'Unknown Assignment';
+                    
+                    const reviews = await getReviews(sub.id);
+                    
+                    let reviewsHTML = '';
+                    if (reviews.length === 0) {
+                        reviewsHTML = '<p class="text-secondary" style="font-size: 0.875rem;">No reviews received yet for this submission.</p>';
+                    } else {
+                        const avgRating = (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1);
+                        reviewsHTML += `<div class="mb-3"><strong style="color: #F59E0B">Average Rating: ${avgRating}/5</strong> (${reviews.length} reviews)</div>`;
+                        
+                        reviews.forEach(r => {
+                            reviewsHTML += `
+                                <div style="background: var(--bg-color); padding: 1rem; border-radius: 0.5rem; margin-bottom: 0.5rem; border: 1px solid var(--border);">
+                                    <div class="flex-between mb-2">
+                                        <div style="color: #F59E0B; font-weight: bold;">
+                                            ${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}
+                                        </div>
+                                        <span class="text-secondary" style="font-size: 0.75rem;">Review ID: ${r.id.split('-')[1]}</span>
+                                    </div>
+                                    <p style="margin: 0; font-size: 0.875rem; line-height: 1.5;">"${r.comment}"</p>
+                                </div>
+                            `;
+                        });
+                    }
+
+                    list.innerHTML += `
+                        <div class="card mb-4" style="border-left: 4px solid var(--primary);">
+                            <h3 class="card-title mb-1">${assignTitle}</h3>
+                            <p class="text-secondary mb-4" style="font-size: 0.875rem;">File: ${sub.fileName} | Submitted: ${new Date(sub.submittedAt).toLocaleDateString()}</p>
+                            
+                            <h4 class="mb-3">Peer Reviews</h4>
+                            ${reviewsHTML}
+                        </div>
+                    `;
+                }
+
+            } catch (err) {
+                list.innerHTML = `<p style="color:red">Error: ${err.message}</p>`;
+            }
+        }
+
+        loadFeedback();
+    </script>
+</body>
+</html>

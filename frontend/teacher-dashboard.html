@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <script src="script.js"></script>
+    <script>checkAuth('teacher');</script>
+    <script>renderNavbar();</script>
+
+    <div class="container">
+        <h2 class="mb-4">Teacher Dashboard</h2>
+
+        <div class="grid">
+            <!-- Create Assignment Section -->
+            <div class="card">
+                <h3 class="card-title">Create New Assignment</h3>
+                <form id="create-assignment-form">
+                    <div class="form-group">
+                        <label class="form-label">Title</label>
+                        <input type="text" id="assign-title" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description</label>
+                        <textarea id="assign-desc" class="form-control" rows="3" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Deadline</label>
+                        <input type="date" id="assign-deadline" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create Assignment</button>
+                    <p id="assign-msg" class="mt-3 text-center"></p>
+                </form>
+            </div>
+
+            <!-- List of Assignments -->
+            <div>
+                <h3 class="card-title mb-4">Your Assignments</h3>
+                <div id="assignments-list" style="display: flex; flex-direction: column; gap: 1rem;">
+                    Loading assignments...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Submissions Modal/Overlay style area (simplified) -->
+    <div class="container d-none" id="submissions-view">
+        <hr class="mb-4">
+        <div class="flex-between mb-4">
+            <h3>Submissions for: <span id="current-assign-title"></span></h3>
+            <button class="btn btn-primary" onclick="closeSubmissions()">Close View</button>
+        </div>
+        <div id="submissions-list" class="grid">
+            Loading submissions...
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('create-assignment-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('assign-title').value;
+            const desc = document.getElementById('assign-desc').value;
+            const deadline = document.getElementById('assign-deadline').value;
+            const user = getAuthUser();
+
+            try {
+                await createAssignment(title, desc, deadline, user.id);
+                document.getElementById('assign-msg').textContent = 'Assignment created successfully!';
+                document.getElementById('assign-msg').style.color = 'var(--secondary)';
+                document.getElementById('create-assignment-form').reset();
+                loadAssignments();
+            } catch (err) {
+                document.getElementById('assign-msg').textContent = err.message;
+                document.getElementById('assign-msg').style.color = 'var(--danger)';
+            }
+        });
+
+        async function loadAssignments() {
+            const list = document.getElementById('assignments-list');
+            list.innerHTML = 'Loading...';
+            try {
+                const user = getAuthUser();
+                const allAssigns = await getAssignments();
+                const myAssigns = allAssigns.filter(a => a.createdBy === user.id);
+                
+                list.innerHTML = '';
+                if (myAssigns.length === 0) {
+                    list.innerHTML = '<p class="text-secondary">No assignments created yet.</p>';
+                    return;
+                }
+
+                myAssigns.forEach(a => {
+                    list.innerHTML += `
+                        <div class="card" style="margin-bottom: 0;">
+                            <div class="flex-between">
+                                <div>
+                                    <h4 style="margin: 0 0 0.5rem 0;">${a.title}</h4>
+                                    <p class="text-secondary" style="margin: 0 0 0.5rem 0; font-size: 0.875rem;">Deadline: ${a.deadline}</p>
+                                </div>
+                                <button class="btn btn-primary" onclick="viewSubmissions('${a.id}', '${a.title}')">View Submissions & Reviews</button>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (err) {
+                list.innerHTML = `<p style="color:red">Error: ${err.message}</p>`;
+            }
+        }
+
+        async function viewSubmissions(assignId, title) {
+            document.getElementById('submissions-view').classList.remove('d-none');
+            document.getElementById('current-assign-title').textContent = title;
+            const list = document.getElementById('submissions-list');
+            list.innerHTML = 'Loading...';
+
+            try {
+                const subs = await getSubmissions(assignId);
+                const allReviews = await getReviews(); // Get all reviews to filter
+
+                list.innerHTML = '';
+                if (subs.length === 0) {
+                    list.innerHTML = '<p class="text-secondary">No submissions yet.</p>';
+                    return;
+                }
+
+                subs.forEach(sub => {
+                    const subReviews = allReviews.filter(r => r.submissionId === sub.id);
+                    let reviewsHTML = subReviews.length ? subReviews.map(r => `
+                        <div style="background: var(--bg-color); padding: 0.5rem; border-radius: 0.25rem; margin-top: 0.5rem; font-size: 0.875rem;">
+                            <strong>Rating: ${r.rating}/5</strong><br>
+                            "${r.comment}"
+                        </div>
+                    `).join('') : '<p class="text-secondary" style="font-size: 0.875rem;">No reviews yet.</p>';
+
+                    list.innerHTML += `
+                        <div class="card">
+                            <h4 style="margin: 0 0 0.5rem 0;">Student ID: <span style="font-size: 0.875rem; color: var(--text-secondary);">${sub.studentId}</span></h4>
+                            <p class="mb-4"><strong>File:</strong> ${sub.fileName} <br><small class="text-secondary">Submitted: ${new Date(sub.submittedAt).toLocaleDateString()}</small></p>
+                            
+                            <h5 style="margin: 0 0 0.5rem 0;">Peer Reviews</h5>
+                            ${reviewsHTML}
+                        </div>
+                    `;
+                });
+            } catch (err) {
+                list.innerHTML = `<p style="color:red">Error: ${err.message}</p>`;
+            }
+        }
+
+        function closeSubmissions() {
+            document.getElementById('submissions-view').classList.add('d-none');
+        }
+
+        loadAssignments();
+    </script>
+</body>
+</html>

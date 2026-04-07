@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Peer Review</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <script src="script.js"></script>
+    <script>checkAuth('student');</script>
+    <script>renderNavbar();</script>
+
+    <div class="container">
+        <div class="flex-between mb-4">
+            <h2>Peer Review Projects</h2>
+            <a href="student-dashboard.html" class="text-secondary" style="text-decoration: none; font-size: 0.875rem;">Back to Dashboard</a>
+        </div>
+
+        <div class="card mb-4">
+            <div class="form-group mb-0">
+                <label class="form-label">Select Assignment to Review</label>
+                <select id="assignment-select" class="form-control" onchange="loadSubmissionsToReview()">
+                    <option value="">-- Choose Assignment --</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="submissions-list" class="grid">
+            <!-- Submissions will load here -->
+        </div>
+    </div>
+
+    <!-- Review Modal Structure -->
+    <div class="container d-none" id="review-area" style="max-width: 600px;">
+        <hr class="mb-4">
+        <h3 class="mb-4">Write Review for: <span id="review-target-file"></span></h3>
+        <form id="review-form" class="card">
+            <input type="hidden" id="review-sub-id">
+            
+            <div class="form-group">
+                <label class="form-label">Rating (1-5)</label>
+                <div class="star-rating">
+                    <input type="radio" id="star5" name="rating" value="5" required/><label for="star5">★</label>
+                    <input type="radio" id="star4" name="rating" value="4"/><label for="star4">★</label>
+                    <input type="radio" id="star3" name="rating" value="3"/><label for="star3">★</label>
+                    <input type="radio" id="star2" name="rating" value="2"/><label for="star2">★</label>
+                    <input type="radio" id="star1" name="rating" value="1"/><label for="star1">★</label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Constructive Feedback</label>
+                <textarea id="review-comment" class="form-control" rows="4" required></textarea>
+            </div>
+
+            <div class="flex-between mt-3">
+                <button type="button" class="btn" style="background: var(--bg-color); border: 1px solid var(--border);" onclick="cancelReview()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Submit Review</button>
+            </div>
+            <p id="review-msg" class="text-center mt-3 mb-0"></p>
+        </form>
+    </div>
+
+    <script>
+        async function loadAssignmentsDropdown() {
+            const select = document.getElementById('assignment-select');
+            try {
+                const assigns = await getAssignments();
+                
+                const urlParams = new URLSearchParams(window.location.search);
+                const preselectId = urlParams.get('assignmentId');
+
+                assigns.forEach(a => {
+                    const selected = a.id === preselectId ? 'selected' : '';
+                    select.innerHTML += `<option value="${a.id}" ${selected}>${a.title}</option>`;
+                });
+
+                if (preselectId) loadSubmissionsToReview();
+            } catch (err) {
+                select.innerHTML = '<option value="">Error loading assignments</option>';
+            }
+        }
+
+        async function loadSubmissionsToReview() {
+            const assignId = document.getElementById('assignment-select').value;
+            const list = document.getElementById('submissions-list');
+            document.getElementById('review-area').classList.add('d-none');
+            
+            if (!assignId) {
+                list.innerHTML = '';
+                return;
+            }
+
+            list.innerHTML = 'Loading submissions...';
+            try {
+                const user = getAuthUser();
+                const subs = await getSubmissions(assignId);
+                const myReviews = await getReviews(null, user.id);
+                
+                // Exclude own submissions
+                const peerSubs = subs.filter(s => s.studentId !== user.id);
+                
+                list.innerHTML = '';
+                if (peerSubs.length === 0) {
+                    list.innerHTML = '<p class="text-secondary">No peer submissions available for review yet.</p>';
+                    return;
+                }
+
+                peerSubs.forEach(sub => {
+                    // Check if already reviewed
+                    const hasReviewed = myReviews.some(r => r.submissionId === sub.id);
+
+                    list.innerHTML += `
+                        <div class="card">
+                            <div class="flex-between mb-3">
+                                <h4 style="margin: 0;">Submission</h4>
+                                ${hasReviewed ? '<span class="badge badge-success" style="background:rgba(16, 185, 129, 0.1);color:#10B981;">Reviewed</span>' : ''}
+                            </div>
+                            <p class="mb-4"><strong>File:</strong> ${sub.fileName}</p>
+                            
+                            <button class="btn ${hasReviewed ? '' : 'btn-primary'}" 
+                                style="width: 100%; ${hasReviewed ? 'background: var(--bg-color); border: 1px solid var(--border);' : ''}"
+                                onclick="openReviewForm('${sub.id}', '${sub.fileName}')" 
+                                ${hasReviewed ? 'disabled' : ''}>
+                                ${hasReviewed ? 'Already Reviewed' : 'Write Review'}
+                            </button>
+                        </div>
+                    `;
+                });
+            } catch (err) {
+                list.innerHTML = `<p style="color:red">Error: ${err.message}</p>`;
+            }
+        }
+
+        function openReviewForm(subId, fileName) {
+            document.getElementById('review-area').classList.remove('d-none');
+            document.getElementById('review-sub-id').value = subId;
+            document.getElementById('review-target-file').textContent = fileName;
+            document.getElementById('review-msg').textContent = '';
+            document.getElementById('review-form').reset();
+            
+            // Scroll to form
+            document.getElementById('review-area').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function cancelReview() {
+            document.getElementById('review-area').classList.add('d-none');
+        }
+
+        document.getElementById('review-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const msg = document.getElementById('review-msg');
+            msg.textContent = '';
+
+            const subId = document.getElementById('review-sub-id').value;
+            const comment = document.getElementById('review-comment').value;
+            
+            // Get selected rating
+            let rating = 0;
+            const ratingInputs = document.getElementsByName('rating');
+            for (const input of ratingInputs) {
+                if (input.checked) rating = input.value;
+            }
+
+            if (!rating || !comment) {
+                msg.textContent = 'Please provide rating and comment';
+                msg.style.color = 'var(--danger)';
+                return;
+            }
+
+            try {
+                const user = getAuthUser();
+                await submitReview(user.id, subId, rating, comment);
+                msg.textContent = 'Review submitted successfully!';
+                msg.style.color = 'var(--secondary)';
+                
+                // Reload list to disable the button
+                setTimeout(() => {
+                    cancelReview();
+                    loadSubmissionsToReview();
+                }, 1500);
+            } catch (err) {
+                msg.textContent = err.message;
+                msg.style.color = 'var(--danger)';
+            }
+        });
+
+        loadAssignmentsDropdown();
+    </script>
+</body>
+</html>

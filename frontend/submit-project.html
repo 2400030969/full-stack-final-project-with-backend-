@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submit Project</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <script src="script.js"></script>
+    <script>checkAuth('student');</script>
+    <script>renderNavbar();</script>
+
+    <div class="auth-container" style="align-items: flex-start; padding-top: 4rem;">
+        <div class="card auth-card" style="max-width: 600px;">
+            <div class="flex-between mb-4">
+                <h2 class="card-title m-0">Submit Project</h2>
+                <a href="student-dashboard.html" class="text-secondary" style="text-decoration: none; font-size: 0.875rem;">Back to Dashboard</a>
+            </div>
+
+            <form id="submit-form">
+                <div class="form-group">
+                    <label class="form-label">Select Assignment</label>
+                    <select id="assignment-select" class="form-control" required>
+                        <option value="">Loading assignments...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Upload File</label>
+                    <input type="file" id="file-upload" class="form-control" required>
+                    <small class="text-secondary mt-1" style="display: block; font-size: 0.75rem;">(Simulated file upload - only stores filename)</small>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Submit Project</button>
+                <p id="submit-msg" class="text-center mt-3"></p>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        async function loadAssignmentsDropdown() {
+            const select = document.getElementById('assignment-select');
+            try {
+                const assigns = await getAssignments();
+                select.innerHTML = '<option value="">-- Choose Assignment --</option>';
+                
+                // Optional: pre-select if assignmentId is in URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const preselectId = urlParams.get('assignmentId');
+
+                assigns.forEach(a => {
+                    const selected = a.id === preselectId ? 'selected' : '';
+                    select.innerHTML += `<option value="${a.id}" ${selected}>${a.title} (Deadline: ${a.deadline})</option>`;
+                });
+            } catch (err) {
+                select.innerHTML = '<option value="">Error loading</option>';
+            }
+        }
+
+        document.getElementById('submit-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const msg = document.getElementById('submit-msg');
+            msg.textContent = '';
+
+            const assignmentId = document.getElementById('assignment-select').value;
+            const fileInput = document.getElementById('file-upload');
+            const fileName = fileInput.files[0] ? fileInput.files[0].name : '';
+
+            if (!assignmentId || !fileName) {
+                msg.textContent = 'Please select an assignment and file';
+                msg.style.color = 'var(--danger)';
+                return;
+            }
+
+            try {
+                const user = getAuthUser();
+                await submitProject(user.id, assignmentId, fileName);
+                msg.textContent = 'Project submitted successfully!';
+                msg.style.color = 'var(--secondary)';
+                document.getElementById('submit-form').reset();
+            } catch (err) {
+                msg.textContent = err.message;
+                msg.style.color = 'var(--danger)';
+            }
+        });
+
+        loadAssignmentsDropdown();
+    </script>
+</body>
+</html>
